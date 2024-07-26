@@ -1,0 +1,37 @@
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+#define F_CPU 16000000UL
+
+void I2C_Slave_Init(uint8_t slave_address) {
+    TWAR = (slave_address << 1);  // Set own TWI slave address
+    TWCR = (1 << TWEA) | (1 << TWEN) | (1 << TWIE);  // Enable TWI, enable acknowledgment, enable TWI interrupt
+    sei();  // Enable global interrupts
+}
+
+ISR(TWI_vect) {
+    switch(TW_STATUS) {
+        case TW_SR_SLA_ACK:  // SLA+W received, ACK returned
+            TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWINT);  // Clear TWINT to resume TWI slave operation
+            break;
+        case TW_SR_DATA_ACK:  // Data received, ACK returned
+            uint8_t data = TWDR;  // Get the received data
+            TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWINT);  // Clear TWINT to resume TWI slave operation
+            break;
+        case TW_ST_SLA_ACK:  // SLA+R received, ACK returned
+            TWDR = 0x55;  // Load data to be sent
+            TWCR = (1 << TWEN) | (1 << TWINT) | (1 << TWEA);  // Clear TWINT to start transmission of data
+            break;
+        default:
+            TWCR = (1 << TWEN) | (1 << TWEA) | (1 << TWINT);  // Clear TWINT to resume TWI slave operation
+            break;
+    }
+}
+
+int main(void) {
+    I2C_Slave_Init(0x20);  // Initialize I2C slave with address 0x20
+    
+    while (1) {
+        // Main loop
+    }
+}
